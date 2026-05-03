@@ -3,20 +3,28 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ASO1940 API - Algerian Civil Associations Management System
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: associations
+    description: Civil associations management
+  - name: members
+    description: Association members management
+  - name: receipts
+    description: Official receipts management
+  - name: stats
+    description: Statistics and analytics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +32,477 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Associations ─────────────────────────────────────────────────────────────
+  /associations:
+    get:
+      operationId: listAssociations
+      tags: [associations]
+      summary: List all associations
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: wilaya
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of associations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssociationListResponse"
+    post:
+      operationId: createAssociation
+      tags: [associations]
+      summary: Create a new association
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssociationBody"
+      responses:
+        "201":
+          description: Created association
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Association"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /associations/{id}:
+    get:
+      operationId: getAssociation
+      tags: [associations]
+      summary: Get association by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Association detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssociationDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateAssociation
+      tags: [associations]
+      summary: Update an association
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAssociationBody"
+      responses:
+        "200":
+          description: Updated association
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Association"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAssociation
+      tags: [associations]
+      summary: Soft-delete an association
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /associations/{id}/renew-tenure:
+    post:
+      operationId: renewTenure
+      tags: [associations]
+      summary: Renew the executive board tenure
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenewTenureBody"
+      responses:
+        "200":
+          description: Tenure renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Association"
+        "400":
+          description: Cannot renew
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Members ──────────────────────────────────────────────────────────────────
+  /associations/{associationId}/members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List members of an association
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: position
+          in: query
+          schema:
+            type: string
+        - name: membershipType
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+    post:
+      operationId: createMember
+      tags: [members]
+      summary: Add a member to an association
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemberBody"
+      responses:
+        "201":
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "400":
+          description: Validation error (e.g. cross-association rules violated)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /associations/{associationId}/members/{memberId}:
+    get:
+      operationId: getMember
+      tags: [members]
+      summary: Get a member by ID
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateMember
+      tags: [members]
+      summary: Update a member
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberBody"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteMember
+      tags: [members]
+      summary: Remove a member from an association
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Receipts ─────────────────────────────────────────────────────────────────
+  /associations/{associationId}/receipts:
+    get:
+      operationId: listReceipts
+      tags: [receipts]
+      summary: List official receipts for an association
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of receipts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Receipt"
+    post:
+      operationId: createReceipt
+      tags: [receipts]
+      summary: Add an official receipt to an association
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReceiptBody"
+      responses:
+        "201":
+          description: Receipt created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Receipt"
+
+  /associations/{associationId}/receipts/{receiptId}:
+    delete:
+      operationId: deleteReceipt
+      tags: [receipts]
+      summary: Delete a receipt
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: receiptId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  # ── Statistics ───────────────────────────────────────────────────────────────
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /stats/associations-by-type:
+    get:
+      operationId: getAssociationsByType
+      tags: [stats]
+      summary: Count of associations grouped by type
+      responses:
+        "200":
+          description: Associations by type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CountByLabel"
+
+  /stats/associations-by-status:
+    get:
+      operationId: getAssociationsByStatus
+      tags: [stats]
+      summary: Count of associations grouped by status
+      responses:
+        "200":
+          description: Associations by status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CountByLabel"
+
+  /stats/monthly-registrations:
+    get:
+      operationId: getMonthlyRegistrations
+      tags: [stats]
+      summary: Monthly association registration counts for the past 12 months
+      responses:
+        "200":
+          description: Monthly counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyCount"
+
+  /stats/tenure-expiring:
+    get:
+      operationId: getTenureExpiring
+      tags: [stats]
+      summary: Associations with tenure expiring within 30 days
+      responses:
+        "200":
+          description: Expiring associations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Association"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +510,384 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+      required: [error]
+
+    Association:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        registrationNumber:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        wilaya:
+          type: string
+        municipality:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        website:
+          type: string
+        establishmentDate:
+          type: string
+          format: date
+        tenureStartDate:
+          type: string
+          format: date
+          nullable: true
+        tenureEndDate:
+          type: string
+          format: date
+          nullable: true
+        currentTenure:
+          type: integer
+        isSportsType:
+          type: boolean
+        tenureExtended:
+          type: boolean
+        isDeleted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        memberCount:
+          type: integer
+      required:
+        - id
+        - name
+        - type
+        - status
+        - wilaya
+        - establishmentDate
+        - currentTenure
+        - isSportsType
+        - isDeleted
+        - createdAt
+        - memberCount
+
+    AssociationDetail:
+      allOf:
+        - $ref: "#/components/schemas/Association"
+        - type: object
+          properties:
+            members:
+              type: array
+              items:
+                $ref: "#/components/schemas/Member"
+            receipts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Receipt"
+          required: [members, receipts]
+
+    AssociationListResponse:
+      type: object
+      properties:
+        associations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Association"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+      required: [associations, total, page, limit, totalPages]
+
+    CreateAssociationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        registrationNumber:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        wilaya:
+          type: string
+        municipality:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        website:
+          type: string
+        establishmentDate:
+          type: string
+          format: date
+        tenureStartDate:
+          type: string
+          format: date
+          nullable: true
+        tenureEndDate:
+          type: string
+          format: date
+          nullable: true
+      required: [name, type, status, wilaya, establishmentDate]
+
+    UpdateAssociationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        registrationNumber:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        wilaya:
+          type: string
+        municipality:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        website:
+          type: string
+        establishmentDate:
+          type: string
+          format: date
+        tenureStartDate:
+          type: string
+          format: date
+          nullable: true
+        tenureEndDate:
+          type: string
+          format: date
+          nullable: true
+
+    RenewTenureBody:
+      type: object
+      properties:
+        tenureStartDate:
+          type: string
+          format: date
+        extend:
+          type: boolean
+          description: For sports associations - extend by 1 year instead of standard 3
+      required: [tenureStartDate]
+
+    Member:
+      type: object
+      properties:
+        id:
+          type: integer
+        associationId:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        nationalId:
+          type: string
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        birthPlace:
+          type: string
+        fatherName:
+          type: string
+        motherName:
+          type: string
+        gender:
+          type: string
+        nationality:
+          type: string
+        position:
+          type: string
+        membershipType:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - associationId
+        - firstName
+        - lastName
+        - position
+        - membershipType
+        - status
+        - createdAt
+
+    CreateMemberBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        nationalId:
+          type: string
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        birthPlace:
+          type: string
+        fatherName:
+          type: string
+        motherName:
+          type: string
+        gender:
+          type: string
+        nationality:
+          type: string
+        position:
+          type: string
+        membershipType:
+          type: string
+        status:
+          type: string
+      required: [firstName, lastName, position, membershipType, status]
+
+    UpdateMemberBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        nationalId:
+          type: string
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        birthPlace:
+          type: string
+        fatherName:
+          type: string
+        motherName:
+          type: string
+        gender:
+          type: string
+        nationality:
+          type: string
+        position:
+          type: string
+        membershipType:
+          type: string
+        status:
+          type: string
+
+    Receipt:
+      type: object
+      properties:
+        id:
+          type: integer
+        associationId:
+          type: integer
+        receiptType:
+          type: string
+        receiptNumber:
+          type: string
+        receiptDate:
+          type: string
+          format: date
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, associationId, receiptType, receiptDate, createdAt]
+
+    CreateReceiptBody:
+      type: object
+      properties:
+        receiptType:
+          type: string
+        receiptNumber:
+          type: string
+        receiptDate:
+          type: string
+          format: date
+        notes:
+          type: string
+      required: [receiptType, receiptDate]
+
+    DashboardStats:
+      type: object
+      properties:
+        totalAssociations:
+          type: integer
+        activeAssociations:
+          type: integer
+        totalMembers:
+          type: integer
+        tenureExpiringCount:
+          type: integer
+        newThisMonth:
+          type: integer
+        suspendedCount:
+          type: integer
+        dissolutionCount:
+          type: integer
+      required:
+        - totalAssociations
+        - activeAssociations
+        - totalMembers
+        - tenureExpiringCount
+        - newThisMonth
+        - suspendedCount
+        - dissolutionCount
+
+    CountByLabel:
+      type: object
+      properties:
+        label:
+          type: string
+        count:
+          type: integer
+      required: [label, count]
+
+    MonthlyCount:
+      type: object
+      properties:
+        month:
+          type: string
+        count:
+          type: integer
+      required: [month, count]
