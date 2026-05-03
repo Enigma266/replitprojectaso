@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useListAssociations, useDeleteAssociation } from "@workspace/api-client-react";
-import { Plus, Search, Filter, Eye, Edit, Trash2, ChevronRight, ChevronLeft } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, ChevronRight, ChevronLeft } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ASSOCIATION_TYPES, ASSOCIATION_STATUSES, WILAYAS } from "@/lib/constants";
+import { ASSOCIATION_TYPES, WILAYAS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,7 +30,6 @@ import { getListAssociationsQueryKey } from "@workspace/api-client-react";
 export function AssociationsList() {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
-  const [status, setStatus] = useState("all");
   const [wilaya, setWilaya] = useState("all");
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -42,7 +41,6 @@ export function AssociationsList() {
     limit,
     ...(search ? { search } : {}),
     ...(type && type !== "all" ? { type } : {}),
-    ...(status && status !== "all" ? { status } : {}),
     ...(wilaya && wilaya !== "all" ? { wilaya } : {}),
   };
 
@@ -64,7 +62,6 @@ export function AssociationsList() {
   function resetFilters() {
     setSearch("");
     setType("all");
-    setStatus("all");
     setWilaya("all");
     setPage(1);
   }
@@ -89,7 +86,7 @@ export function AssociationsList() {
 
       {/* Filters */}
       <div className="bg-card border border-card-border rounded-xl p-4 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="relative">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -111,17 +108,6 @@ export function AssociationsList() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
-            <SelectTrigger>
-              <SelectValue placeholder="الحالة" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">جميع الحالات</SelectItem>
-              {Object.entries(ASSOCIATION_STATUSES).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Select value={wilaya} onValueChange={(v) => { setWilaya(v); setPage(1); }}>
             <SelectTrigger>
               <SelectValue placeholder="الولاية" />
@@ -134,7 +120,7 @@ export function AssociationsList() {
             </SelectContent>
           </Select>
         </div>
-        {(search || type !== "all" || status !== "all" || wilaya !== "all") && (
+        {(search || type !== "all" || wilaya !== "all") && (
           <div className="mt-3 flex justify-end">
             <button
               onClick={resetFilters}

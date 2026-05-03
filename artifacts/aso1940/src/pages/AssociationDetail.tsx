@@ -7,19 +7,21 @@ import {
   useDeleteMember,
   useListReceipts,
   useDeleteReceipt,
+  useCreateReceipt,
   useRenewTenure,
   getGetAssociationQueryKey,
   getListAssociationsQueryKey,
+  getListReceiptsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowRight, Edit, Trash2, Users, FileText, RotateCcw, Phone, Mail, Globe, MapPin, Calendar, Hash,
+  ArrowRight, Edit, Trash2, Users, FileText, RotateCcw, Phone, Mail, Globe, MapPin, Calendar, Hash, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   ASSOCIATION_TYPES, MEMBER_POSITIONS, MEMBERSHIP_TYPES, MEMBER_STATUSES,
-  RECEIPT_TYPES, ASSOCIATION_STATUSES,
+  RECEIPT_TYPES,
 } from "@/lib/constants";
 import {
   AlertDialog,
@@ -43,6 +45,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function TenureRenewDialog({ association, open, onClose }: {
   association: { id: number; isSportsType: boolean; tenureExtended: boolean };
@@ -116,12 +125,103 @@ function TenureRenewDialog({ association, open, onClose }: {
   );
 }
 
+function AddReceiptDialog({ associationId, open, onClose }: {
+  associationId: number;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const createMutation = useCreateReceipt();
+  const [receiptType, setReceiptType] = useState("establishment");
+  const [receiptNumber, setReceiptNumber] = useState("");
+  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split("T")[0]);
+  const [notes, setNotes] = useState("");
+
+  function handleSubmit() {
+    if (!receiptDate) return;
+    createMutation.mutate(
+      {
+        associationId,
+        receiptType,
+        receiptNumber: receiptNumber || undefined,
+        receiptDate,
+        notes: notes || undefined,
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListReceiptsQueryKey(associationId) });
+          setReceiptNumber("");
+          setNotes("");
+          setReceiptType("establishment");
+          onClose();
+        },
+      }
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>إضافة وصل جديد</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>نوع الوصل <span className="text-destructive">*</span></Label>
+            <Select value={receiptType} onValueChange={setReceiptType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(RECEIPT_TYPES).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>رقم الوصل</Label>
+            <Input
+              placeholder="مثال: ESTB-2024-001"
+              value={receiptNumber}
+              onChange={(e) => setReceiptNumber(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>تاريخ الوصل <span className="text-destructive">*</span></Label>
+            <Input
+              type="date"
+              value={receiptDate}
+              onChange={(e) => setReceiptDate(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>ملاحظات</Label>
+            <Input
+              placeholder="ملاحظات إضافية..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button onClick={handleSubmit} disabled={createMutation.isPending || !receiptDate}>
+            {createMutation.isPending ? "جارٍ الحفظ..." : "حفظ الوصل"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 interface Props { id: number }
 
 export function AssociationDetail({ id }: Props) {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const [renewOpen, setRenewOpen] = useState(false);
+  const [addReceiptOpen, setAddReceiptOpen] = useState(false);
 
   const { data: assoc, isLoading } = useGetAssociation(id);
   const { data: members } = useListMembers(id, {});
@@ -407,6 +507,10 @@ export function AssociationDetail({ id }: Props) {
           <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <span className="font-medium text-foreground">الوصولات</span>
+              <Button size="sm" className="gap-1.5" onClick={() => setAddReceiptOpen(true)}>
+                <Plus className="w-4 h-4" />
+                إضافة وصل
+              </Button>
             </div>
             {(receipts ?? []).length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-sm">لا توجد وصولات مسجلة</div>
@@ -469,6 +573,11 @@ export function AssociationDetail({ id }: Props) {
         association={assoc}
         open={renewOpen}
         onClose={() => setRenewOpen(false)}
+      />
+      <AddReceiptDialog
+        associationId={id}
+        open={addReceiptOpen}
+        onClose={() => setAddReceiptOpen(false)}
       />
     </div>
   );
